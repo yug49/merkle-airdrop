@@ -13,25 +13,32 @@ contract MerkleAirdropTest is Test {
 
     uint256 public constant AMOUNT_TO_CLAIM = 25 * 1e18;
     uint256 public constant AMOUNT_TO_MINT = 4 * AMOUNT_TO_CLAIM;
-    bytes32 proofOne = 0xb33df583925c44788716f78d82bca93cd5716721eefd680cdf5a2146a61f5832;
+    bytes32 proofOne = 0x0fd7c981d39bece61f7499702bf59b3114a90e66b51ba2c53abdf7b62986c00a;
     bytes32 proofTwo = 0x3daa16ff013540280ab04f47046fbf370a0704b8ab404f4caa60aedcbc3d5326;
     bytes32[] public PROOF = [proofOne, proofTwo];
 
-    bytes32 public ROOT = 0x0569dd132882dfc2838c8ec05a2399ff4a07db34e3a54d4bb0f1d14d6adb41b7;
+    bytes32 public ROOT = 0xfa1ebfe7e2ebaa4564d7e1fa95818b2ccc76d58a6b8a6303df2af2ae37cb4669;
     address user;
     uint256 userPrivKey;
+    address public gasPayer;
 
     function setUp() public {
         DeployMerkleAirdrop deployer = new DeployMerkleAirdrop();
         (airdrop, token) = deployer.deployMerkleAirdrop();
         (user, userPrivKey) = makeAddrAndKey("user");
+        gasPayer = makeAddr("gasPayer");
     }
 
     function testUsersCanClaim() public {
         uint256 startingBalance = token.balanceOf(user);
+        bytes32 digest = airdrop.getMessageHash(user, AMOUNT_TO_CLAIM);
 
-        vm.prank(user);
-        airdrop.claim(user, AMOUNT_TO_CLAIM, PROOF);
+        //sign a message
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivKey, digest);
+
+        //gas payer calls claim using signed message
+        vm.prank(gasPayer);
+        airdrop.claim(user, AMOUNT_TO_CLAIM, PROOF, v, r, s);
 
         uint256 endingBalance = token.balanceOf(user);
         console.log("Ending balance of the user: ", endingBalance);
